@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import IncludeLaunchDescription, TimerAction, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -21,11 +21,27 @@ def generate_launch_description():
         }.items()
     )
 
+    is_sim_arg = DeclareLaunchArgument(
+        'is_sim',
+        default_value='true'
+    )
+    
+    map_frame_arg = DeclareLaunchArgument(
+        'map_frame',
+        default_value='world_enu'
+    )
+
     occupancy_grid_node = Node(
         package='grid_mapping',
         executable='occupancy_grid',
         name='occupancy_grid',
-        output='screen'
+        output='screen',
+        parameters=[{
+            'is_sim': LaunchConfiguration('is_sim'),
+            'map_frame': LaunchConfiguration('map_frame'),
+            'base_frame': 'base_footprint',
+            'laser_frame': 'turtlebot/rplidar'
+        }]
     )
 
     rrt_planner_node = Node(
@@ -36,7 +52,7 @@ def generate_launch_description():
     )
 
     delayed_nodes = TimerAction(
-        period=15.0,
+        period=10.0,
         actions=[
             occupancy_grid_node,
             rrt_planner_node
@@ -45,6 +61,8 @@ def generate_launch_description():
 
     # 3. Return the Description
     return LaunchDescription([
+        is_sim_arg,
+        map_frame_arg,
         base_simulation,
         delayed_nodes
     ])

@@ -41,6 +41,15 @@ class GridMappingNode(Node):
         # Declare lidar frame name
         self.is_sim = self.declare_parameter('is_sim', True).get_parameter_value().bool_value
 
+        # Declare frame parameters
+        self.declare_parameter('map_frame', 'world_enu')
+        self.declare_parameter('base_frame', 'base_footprint')
+        self.declare_parameter('laser_frame', 'turtlebot/rplidar')
+
+        self.map_frame = self.get_parameter('map_frame').value
+        self.base_frame = self.get_parameter('base_frame').value
+        self.laser_frame = self.get_parameter('laser_frame').value
+
         if self.is_sim:
             self.get_logger().info('Running in SIMULATION mode')
             self.lidar_offset = np.pi
@@ -81,7 +90,7 @@ class GridMappingNode(Node):
             self.map_initialized = True
             self.get_logger().info(f'Map centered at ({self.x:.2f}, {self.y:.2f})')
             self.map_tf = TransformStamped()
-            self.map_tf.header.frame_id = 'world_enu'
+            self.map_tf.header.frame_id = self.map_frame
             self.map_tf.child_frame_id = 'map'
             self.map_tf.transform.translation.x = 0.0
             self.map_tf.transform.translation.y = 0.0
