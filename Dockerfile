@@ -68,6 +68,34 @@ RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/stonefish.conf && ldconfig
 # 8. Force NVIDIA usage for OpenGL
 ENV __NV_PRIME_RENDER_OFFLOAD=1
 ENV __GLX_VENDOR_LIBRARY_NAME=nvidia
+
+# 9. Disable V-Sync (Crucial for simulation sync)
+ENV __GL_VBLANK_MODE=0 
+
+# 10. Optimized ROS 2 DDS Settings
+# This helps prevent "Odom Lag" by using Shared Memory
+COPY <<EOF /tmp/shm_linux.xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastrtps_profiles">
+    <transport_descriptors>
+        <transport_descriptor>
+            <transport_id>shm_transport</transport_id>
+            <type>SHM</type>
+        </transport_descriptor>
+    </transport_descriptors>
+    <participant profile_name="shm_part" is_default_profile="true">
+        <rtps>
+            <userTransports>
+                <transport_id>shm_transport</transport_id>
+            </userTransports>
+        </rtps>
+    </participant>
+</profiles>
+EOF
+
+ENV FASTRTPS_DEFAULT_PROFILES_FILE=/tmp/shm_linux.xml
+
+RUN apt-get update && apt-get install -y python3-pip
     
 WORKDIR /root/ros2_ws
 

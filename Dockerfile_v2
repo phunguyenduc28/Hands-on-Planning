@@ -32,6 +32,16 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-tf-transformations \
     libglvnd0 libgl1 libglx0 libegl1 libxext6 libx11-6 \
     && rm -rf /var/lib/apt/lists/*
+    
+RUN apt-get update && apt-get install -y \
+    ros-jazzy-teleop-twist-* \
+    ros-jazzy-turtlebot4* \
+    ros-jazzy-rviz2* \
+    ros-jazzy-kobuki* \
+    ros-jazzy-realsense* \
+    ros-jazzy-octomap* \
+    ros-jazzy-laser* \
+    && rm -rf /var/lib/apt/lists/*
 
 # 5. Install Stonefish Library Dependencies
 RUN apt-get update && apt-get install -y \

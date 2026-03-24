@@ -107,17 +107,24 @@ class SamplingTurtlebot(Node):
         if self.map is None or self.robot_pose is None or self.goal_pose is None:  
             return
         
-        self.get_logger().info(f"In path loop")
+        # self.get_logger().info(f"In path loop")
         # Conversion of robot pose and goal pose to cell coordinate
         q_goal = (np.array([self.goal_pose.y, self.goal_pose.x]) - self.origin) / self.resolution # why do we need to swap between the x and y
         q_start = (np.array([self.robot_pose.y, self.robot_pose.x]) - self.origin) / self.resolution
+        q_goal_point = PointRRT(q_goal[0], q_goal[1])
+        q_start_point = PointRRT(q_start[0], q_start[1])
+
+        rrt_star = RRT_STAR(self.delta_q, self.p, self.max_depth, self.min_dist, self.radius, self.threshold_path_rewire_dist)
+        is_goal_occupied = rrt_star.is_point_occupied(q_goal_point, self.map)
+        if is_goal_occupied: 
+            self.get_logger().warn(f"Goal point is not valid (on obstacle). Select another goal")
+            return
+
 
         if self.waypoints is not None:
             next_waypoint = self.waypoints[0]
             q_next = (np.array([next_waypoint[1], next_waypoint[0]]) - self.origin) / self.resolution
             q_next_point = PointRRT(q_next[0], q_next[1])
-            q_start_point = PointRRT(q_start[0], q_start[1])
-            rrt_star = RRT_STAR(self.delta_q, self.p, self.max_depth, self.min_dist, self.radius, self.threshold_path_rewire_dist)
             self.collide_robot_next_waypoint = not rrt_star.is_segment_free_bisection(q_start_point, q_next_point, self.map, 0)
             if self.collide_robot_next_waypoint:
                 self.get_logger().warn(f"Path to next waypoint is not clear. Stop and replan")
@@ -128,7 +135,6 @@ class SamplingTurtlebot(Node):
             return
         else:
             path = []
-            rrt_star = RRT_STAR(self.delta_q, self.p, self.max_depth, self.min_dist, self.radius, self.threshold_path_rewire_dist)
             G, edges, iter = rrt_star.sample(self.map, self.max_iterations, q_start[0], q_start[1], q_goal[0], q_goal[1]) 
             if iter == self.max_iterations and len(edges) == 0:
                 self.get_logger().info("Cannot find a path within a defined iteration numbers")
@@ -154,11 +160,12 @@ class SamplingTurtlebot(Node):
             self.collide_robot_next_waypoint = False
 
     def control_loop(self):
-        self.get_logger().info(f"In control loop waypoint {self.waypoints}")
+        self.get_logger().info(f"In control loop received waypoint {self.waypoints}")
         if self.waypoints is None or len(self.waypoints) == 0:
             # If no waypoints, ensure robot is stopped
             stop_msg = Twist()
             self.cmd_vel_pub.publish(stop_msg)
+            self.complete_a_path = True
             return
         
         self.complete_a_path = False
@@ -203,7 +210,7 @@ class SamplingTurtlebot(Node):
             cmd_vel.angular.z = w
             
             self.cmd_vel_pub.publish(cmd_vel)
-            self.get_logger().info(f"Target: {next_waypoint}, Dist: {dist:.2f}, Linear: {v:.2f}, Angular: {w:.2f}")
+            # self.get_logger().info(f"Target: {next_waypoint}, Dist: {dist:.2f}, Linear: {v:.2f}, Angular: {w:.2f}")
         
     def publish_positions_as_markers(self, positions):
         """

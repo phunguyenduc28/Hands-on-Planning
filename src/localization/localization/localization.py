@@ -69,7 +69,7 @@ class Localisation_Node(Node):
         self.gt_odom_sub = self.create_subscription(Odometry, '/turtlebot/odom_ground_truth', self.ground_truth_callback, 10)
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
         self.tf_br = TransformBroadcaster(self)
-        self.get_logger().info(f"Odom Node Started. Base: {self.base_frame}, Odom: {self.odom_frame}")
+        # self.get_logger().info(f"Odom Node Started. Base: {self.base_frame}, Odom: {self.odom_frame}")
 
 
     def euler_from_quaternion(self, q):
@@ -110,7 +110,7 @@ class Localisation_Node(Node):
     #  EKF Correction (IMU Update) 
     def imu_callback(self, msg):
         """Task 3: Update filter based on IMU orientation """
-        self.get_logger().info(f"IMU update")
+        # self.get_logger().info(f"IMU update")
         if not self.first_received: return
 
         # Measurement: Extract Yaw from IMU
@@ -202,12 +202,12 @@ class Localisation_Node(Node):
             error_yaw = abs(self.th - gt_yaw)
             error_yaw = min(error_yaw, 2*math.pi - error_yaw)  # Shortest angle difference
             
-            self.get_logger().info(
-                f"\n--- EKF vs Ground Truth ---\n"
-                f"EKF:  x={self.x:.4f}, y={self.y:.4f}, yaw={self.th:.4f}\n"
-                f"GT:   x={gt_x:.4f}, y={gt_y:.4f}, yaw={gt_yaw:.4f}\n"
-                f"Error: Δx={error_x:.4f}, Δy={error_y:.4f}, Δyaw={error_yaw:.4f}\n"
-            )
+            # self.get_logger().info(
+            #     f"\n--- EKF vs Ground Truth ---\n"
+            #     f"EKF:  x={self.x:.4f}, y={self.y:.4f}, yaw={self.th:.4f}\n"
+            #     f"GT:   x={gt_x:.4f}, y={gt_y:.4f}, yaw={gt_yaw:.4f}\n"
+            #     f"Error: Δx={error_x:.4f}, Δy={error_y:.4f}, Δyaw={error_yaw:.4f}\n"
+            # )
 
 
 def main():

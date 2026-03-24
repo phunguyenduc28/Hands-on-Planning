@@ -14,9 +14,6 @@ from nav_msgs.msg import Odometry, OccupancyGrid
 from sensor_msgs.msg import LaserScan
 import tf2_ros
 
-from lab1_1.load_csv_files import wrap_angle
-
-
 class GridMap:
     """
     Probabilistic occupancy grid map using log-odds representation.
