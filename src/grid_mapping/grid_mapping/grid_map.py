@@ -2,6 +2,7 @@ import numpy as np
 from bresenham import bresenham             # For tracing lines in the grid
 from nav_msgs.msg import OccupancyGrid      # For receiving robot position and publish map
 from scipy.ndimage import binary_dilation   # For map inflation
+import math
 
 class GridMap:
     # Saturation log-odds limits (to avoid inf values)
@@ -65,14 +66,32 @@ class GridMap:
             self.__update_cell__(cell, 1 - p)   # Intermediate cells (l - p -> 0.1) free
         self.__update_cell__(cells[-1], p)      # Last cell (0.9) obstacle
 
+    # def inflateObstacles(self, inflation_radius):
+    #     inflation_cells = int(inflation_radius / self.cell_size)
+        
+    #     # Create circular structuring element
+    #     y, x = np.ogrid[-inflation_cells:inflation_cells+1, -inflation_cells:inflation_cells+1]
+    #     structure = (x**2 + y**2) <= inflation_cells**2
+        
+    #     # Dilate obstacles
+    #     obstacle_mask = self.grid > 0.5
+    #     inflated_mask = binary_dilation(obstacle_mask, structure=structure)
+        
+    #     inflated_grid = np.copy(self.grid)
+    #     inflated_grid[inflated_mask & (self.grid <= 0.5)] = 1.0
+    #     return inflated_grid
+
     def inflateObstacles(self, inflation_radius):
-        inflation_cells = int(inflation_radius / self.cell_size)
+        # Use ceil to ensure we cover the full radius
+        inflation_cells = math.ceil(inflation_radius / self.cell_size)
         
         # Create circular structuring element
         y, x = np.ogrid[-inflation_cells:inflation_cells+1, -inflation_cells:inflation_cells+1]
-        structure = (x**2 + y**2) <= inflation_cells**2
         
-        # Dilate obstacles
+        # FIX: Adding +0.5 to the radius comparison makes the circle "fuller" 
+        # and prevents the 1-pixel "dot" artifact on cardinal edges.
+        structure = (x**2 + y**2) <= (inflation_cells + 0.5)**2
+        
         obstacle_mask = self.grid > 0.5
         inflated_mask = binary_dilation(obstacle_mask, structure=structure)
         

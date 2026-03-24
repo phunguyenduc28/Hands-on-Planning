@@ -192,7 +192,7 @@ class GridMappingNode(Node):
         self.map_pub.publish(msg)
 
         # Publish the inflated map
-        inflated_msg = map_to_msg(self.gridmap, inflated=True, inflation_radius=0.33)
+        inflated_msg = map_to_msg(self.gridmap, inflated=True, inflation_radius=0.30)
         inflated_msg.header = msg.header  # Keep same header for consistency
         inflated_msg.info.map_load_time = msg.info.map_load_time
         self.inflated_map_pub.publish(inflated_msg)

@@ -25,8 +25,8 @@ class SamplingTurtlebot(Node):
         self.inflated_cost = 0.36 # inflated footprint larger than robot radius
         self.max_linear_velocity = 0.3
         self.max_angular_velocity = 0.3
-        self.kv = 0.5
-        self.kw = 0.5
+        self.kv = 1.0
+        self.kw = 1.0
 
         # Map variables
         self.map = None
@@ -36,7 +36,7 @@ class SamplingTurtlebot(Node):
         # RRT star variable
         self.max_iterations = 2000
         self.delta_q = 8
-        self.p = 0.2
+        self.p = 0.3
         self.max_depth = round(math.log(self.delta_q, 2)) + 1 # max iteration for considering a segment free or not
         self.min_dist = 5
         self.radius = 5
@@ -125,7 +125,7 @@ class SamplingTurtlebot(Node):
             next_waypoint = self.waypoints[0]
             q_next = (np.array([next_waypoint[1], next_waypoint[0]]) - self.origin) / self.resolution
             q_next_point = PointRRT(q_next[0], q_next[1])
-            self.collide_robot_next_waypoint = not rrt_star.is_segment_free_bisection(q_start_point, q_next_point, self.map, 0)
+            self.collide_robot_next_waypoint = not rrt_star.is_segment_free_bisection(q_start_point, q_next_point, self.map, 0) # might test transposing the map input when running with real robot
             if self.collide_robot_next_waypoint:
                 self.get_logger().warn(f"Path to next waypoint is not clear. Stop and replan")
                 stop_msg = Twist()
@@ -135,9 +135,10 @@ class SamplingTurtlebot(Node):
             return
         else:
             path = []
-            G, edges, iter = rrt_star.sample(self.map, self.max_iterations, q_start[0], q_start[1], q_goal[0], q_goal[1]) 
+            self.get_logger().info(f"Planning a path from {q_start} to {q_goal}")
+            G, edges, iter = rrt_star.sample(self.map, self.max_iterations, q_start[0], q_start[1], q_goal[0], q_goal[1]) # might test transposing the map input when running with real robot
             if iter == self.max_iterations and len(edges) == 0:
-                self.get_logger().info("Cannot find a path within a defined iteration numbers")
+                self.get_logger().warn("Cannot find a path within a defined iteration numbers")
             else:
                 G, edges, path = rrt_star.fill_path(G, edges)
                 path = rrt_star.smoothing(self.map, G, path)

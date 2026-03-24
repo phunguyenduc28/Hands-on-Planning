@@ -7,7 +7,7 @@ Panels:
         - /RobotModel1/Description Topic1
         - /RPLidar1
         - /Map1
-        - /Map2
+        - /Odometry1
       Splitter Ratio: 0.5
     Tree Height: 707
   - Class: rviz_common/Selection
@@ -273,7 +273,7 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Alpha: 0.699999988079071
+    - Alpha: 0.5
       Binary representation: false
       Binary threshold: 100
       Class: rviz_default_plugins/Map
@@ -300,8 +300,7 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        links: true
-        positions: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -417,25 +416,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 7.274580478668213
+      Distance: 5.1323466300964355
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.9205060005187988
-        Y: 0.7814916968345642
-        Z: 0.002166854217648506
+        X: -1.0377641916275024
+        Y: 0.9631993770599365
+        Z: -0.00921692792326212
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.5647963285446167
+      Pitch: 1.5547963380813599
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.7121992111206055
+      Yaw: 4.697202205657959
     Saved: ~
 Window Geometry:
   Displays:

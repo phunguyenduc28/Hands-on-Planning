@@ -64,10 +64,6 @@ class GridMap:
         )
     
     def add_ray(self, ray_init_position, ray_angle, ray_range, p_occ, mark_occupied=True):
-        """
-        Update grid cells along a laser ray.
-        Marks free space along ray, occupied at endpoint.
-        """
         x_init, y_init = ray_init_position
         x_final = x_init + ray_range * np.cos(ray_angle)
         y_final = y_init + ray_range * np.sin(ray_angle)
@@ -75,21 +71,22 @@ class GridMap:
         x_init_cell, y_init_cell = self.position_to_cell(ray_init_position)
         x_final_cell, y_final_cell = self.position_to_cell((x_final, y_final))
         
-        # Bresenham line
         points = list(self.bresenham(x_init_cell, y_init_cell, x_final_cell, y_final_cell))
         if len(points) == 0:
             return
         
+        # Use a smaller probability for clearing (p_free = 0.4) 
+        # than for occupying (p_occ = 0.9)
+        p_free = 0.35 # Much lower than 0.5 to make "clearing" cautious
+        
         # Mark cells along ray as free
+        # Optimization: Only clear up to the point BEFORE the hit
         for pt in points[:-1]:
-            self.update_cell(pt, 1.0 - p_occ)
+            self.update_cell(pt, p_free)
         
         # Mark endpoint as occupied
         if mark_occupied:
             self.update_cell(points[-1], p_occ)
-        else:
-            # If it was max range, the last point is also free
-            self.update_cell(points[-1], 1 - p_occ)
     
     @staticmethod
     def bresenham(x0, y0, x1, y1):
@@ -117,13 +114,17 @@ class GridMap:
         return points
     
     def log_odds_to_probability(self, log_odds):
-        """Convert log-odds to occupancy probability [0-100] or -1 for unknown."""
-        # Convert log-odds to probability using sigmoid
-        # p = 1 - (1 / (1 + exp(L)))
-        prob = 1.0 - (1.0 / (1.0 + np.exp(log_odds)))
+        # If log_odds is near 0, it means we have no information (Unknown)
+        if abs(log_odds) < 0.01:
+            return -1
         
-        # Clamp probability to 0-100 range becauase ROS OccupancyGrid uses int8 with -1 for unknown, 0 for free, and 100 for occupied
-        return int(np.clip(prob * 100, 0, 100))
+        prob = 1.0 / (1.0 + np.exp(-log_odds))
+        val = int(prob * 100)
+        
+        # Ensure standard ROS thresholds
+        if val > 60: return 100 # Definitely occupied
+        if val < 40: return 0   # Definitely free
+        return 50               # Uncertain
     
     def get_occupancy_grid_array(self):
         """Get occupancy grid as array for OccupancyGrid message."""
@@ -136,6 +137,50 @@ class GridMap:
     def get_origin(self):
         """Get grid origin."""
         return self.origin
+
+    def get_inflated_grid(self, inflation_radius_m):
+            """
+            Returns a version of the grid where occupied cells are expanded.
+            """
+            # Get the standard 0-100 grid
+            grid_data = self.get_occupancy_grid_array()
+            
+            # Calculate radius in cells
+            radius_cells = int(math.ceil(inflation_radius_m / self.cell_size))
+            if radius_cells <= 0:
+                return grid_data
+
+            # Create a circular mask for inflation
+            y, x = np.ogrid[-radius_cells:radius_cells+1, -radius_cells:radius_cells+1]
+            mask = x**2 + y**2 <= radius_cells**2
+            
+            # Identify occupied cells (value 100)
+            occupied_mask = (grid_data == 100)
+            inflated_grid = grid_data.copy()
+
+            # Simple but effective inflation: 
+            # For every occupied cell, apply the circular mask
+            # Note: In a production environment, scipy.ndimage.binary_dilation is faster
+            rows, cols = np.where(occupied_mask)
+            for r, c in zip(rows, cols):
+                r_start = max(0, r - radius_cells)
+                r_end = min(self.height, r + radius_cells + 1)
+                c_start = max(0, c - radius_cells)
+                c_end = min(self.width, c + radius_cells + 1)
+                
+                # Slice the mask to fit map boundaries
+                mask_r_start = radius_cells - (r - r_start)
+                mask_r_end = mask_r_start + (r_end - r_start)
+                mask_c_start = radius_cells - (c - c_start)
+                mask_c_end = mask_c_start + (c_end - c_start)
+                
+                # Apply mask: if original is not already occupied, mark as inflated (e.g., 99 or 100)
+                inflated_grid[r_start:r_end, c_start:c_end] = np.maximum(
+                    inflated_grid[r_start:r_end, c_start:c_end], 
+                    mask[mask_r_start:mask_r_end, mask_c_start:mask_c_end] * 100
+                )
+                
+            return inflated_grid.astype(np.int8)
 
 
 class OccupancyGridNode(Node):
@@ -153,6 +198,8 @@ class OccupancyGridNode(Node):
         # self.declare_parameter('laser_frame', 'rplidar') #<--- For rosbag file
 
         self.declare_parameter('p_occ', 0.9)
+
+        self.declare_parameter('inflation_radius', 0.3) # meters
         
         # Get parameters
         grid_size = self.get_parameter('grid_size').value
@@ -162,6 +209,8 @@ class OccupancyGridNode(Node):
         self.laser_frame = self.get_parameter('laser_frame').value
         p_occ = self.get_parameter('p_occ').value
         self.p_occ = p_occ
+        self.inflation_radius = self.get_parameter('inflation_radius').value
+
         
         # Initialize GridMap (centered at origin)
         self.grid_map = GridMap(center=[0.0, 0.0], cell_size=self.grid_resolution, map_size=grid_size)
@@ -189,6 +238,7 @@ class OccupancyGridNode(Node):
         
         # Publisher for occupancy grid
         self.map_pub = self.create_publisher(OccupancyGrid, '/map', 10)
+        self.inflated_map_pub = self.create_publisher(OccupancyGrid, '/inflated_map', 10)
         
         # Timer to publish map periodically
         self.timer = self.create_timer(1, self.timer_callback)
@@ -310,9 +360,10 @@ class OccupancyGridNode(Node):
                 beam_angle = laser_yaw - angle_laser
                 
                 # If it's a max-range hit, only clear the path, don't mark an obstacle
-                # if is_max_range:
-                    # pass 
-                # else:
+                if is_max_range:
+                    # Clear space only up to a 'safe' distance, 
+                    # slightly less than max to avoid clearing walls at the limit
+                    effective_range = min(max_range, scan_msg.range_max) * 0.9
                 self.grid_map.add_ray(
                     (robot_x_map, robot_y_map),
                     beam_angle,
@@ -329,41 +380,31 @@ class OccupancyGridNode(Node):
             self.get_logger().error(f"Error during grid update: {type(ex).__name__}: {ex}")
     
     def publish_occupancy_grid(self):
-        """Publish the current occupancy grid as OccupancyGrid message."""
-        # Get occupancy grid data
-        grid_data = self.grid_map.get_occupancy_grid_array()
-        
-        # Create OccupancyGrid message
-        msg = OccupancyGrid()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = self.map_frame
-        
-        # Map info
-        msg.info.map_load_time = msg.header.stamp
-        msg.info.resolution = self.grid_map.cell_size
-        msg.info.width = self.grid_map.width
-        msg.info.height = self.grid_map.height
-        
-        # Origin
-        origin = self.grid_map.get_origin()
-        msg.info.origin.position.x = origin[0]
-        msg.info.origin.position.y = origin[1]
-        msg.info.origin.position.z = 0.0
-        msg.info.origin.orientation.w = 1.0
-        
-        # Convert grid to flat array in row-major order
-        # ROS 2 expects a Python list, not a numpy array!
-        msg.data = grid_data.flatten().tolist()
-        
-        # Count data for logging purposes as I was encoutering some errors
-        occupied_count = sum(1 for v in msg.data if v > 50)
-        free_count = sum(1 for v in msg.data if 0 <= v <= 50)
-        unknown_count = sum(1 for v in msg.data if v == -1)
-        
-        self.get_logger().debug(f"Publishing map: frame_id='{msg.header.frame_id}', size={msg.info.width}x{msg.info.height}, "
-                               f"occupied={occupied_count}, free={free_count}, unknown={unknown_count}")
-        
-        self.map_pub.publish(msg)
+            """Publish the raw and inflated occupancy grids."""
+            # 1. Get raw and inflated data
+            raw_data = self.grid_map.get_occupancy_grid_array()
+            inflated_data = self.grid_map.get_inflated_grid(self.inflation_radius)
+            
+            # 2. Prepare common message header
+            now = self.get_clock().now().to_msg()
+            origin = self.grid_map.get_origin()
+            
+            def create_msg(data_array):
+                m = OccupancyGrid()
+                m.header.stamp = now
+                m.header.frame_id = self.map_frame
+                m.info.resolution = self.grid_map.cell_size
+                m.info.width = self.grid_map.width
+                m.info.height = self.grid_map.height
+                m.info.origin.position.x = origin[0]
+                m.info.origin.position.y = origin[1]
+                m.info.origin.orientation.w = 1.0
+                m.data = data_array.flatten().tolist()
+                return m
+
+            # 3. Publish both
+            self.map_pub.publish(create_msg(raw_data))
+            self.inflated_map_pub.publish(create_msg(inflated_data))
 
 
 
