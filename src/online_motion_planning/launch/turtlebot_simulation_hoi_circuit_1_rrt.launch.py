@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -35,23 +35,16 @@ def generate_launch_description():
         output='screen'
     )
 
-    # localization_node = Node(
-    #         package='localization',
-    #         executable='localization',
-    #         name='differential_drive_ekf',
-    #         # output='screen',
-    #         parameters=[{
-    #             'odom_frame': 'world_enu',
-    #             'base_frame': PathJoinSubstitution([LaunchConfiguration('robot_name'), 'base_footprint']),
-    #             'wheel_left_joint_name': PathJoinSubstitution([LaunchConfiguration('robot_name'), 'wheel_left_joint']),
-    #             'wheel_right_joint_name': PathJoinSubstitution([LaunchConfiguration('robot_name'), 'wheel_right_joint'])
-    #         }]
-    #     )
+    delayed_nodes = TimerAction(
+        period=15.0,
+        actions=[
+            occupancy_grid_node,
+            rrt_planner_node
+        ]
+    )
 
     # 3. Return the Description
     return LaunchDescription([
         base_simulation,
-        # localization_node,
-        occupancy_grid_node,
-        rrt_planner_node
+        delayed_nodes
     ])
