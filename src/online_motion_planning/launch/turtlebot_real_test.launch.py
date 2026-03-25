@@ -9,6 +9,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
     # 1. Resolve paths
     pkg_dir = get_package_share_directory('turtlebot_simulation')
+    pkg_turtlebot_desc = get_package_share_directory('turtlebot_description')
 
     # 2. Define the individual actions
     is_sim_arg = DeclareLaunchArgument(
@@ -43,7 +44,7 @@ def generate_launch_description():
             'map_frame': LaunchConfiguration('map_frame'),
             'base_frame': 'base_footprint',
             'laser_frame': 'rplidar',
-            'inflation_radius': 0.25
+            'inflation_radius': 0.20
         }]
     )
 
@@ -56,6 +57,13 @@ def generate_launch_description():
             'map_frame': LaunchConfiguration('map_frame')
         }]
     )
+
+    rviz_node = Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=['-d', PathJoinSubstitution([pkg_turtlebot_desc, 'rviz', 'turtlebot_rrt_costmap.rviz'])]
+        )
 
     # 3. Return the Description
     return LaunchDescription([

@@ -199,7 +199,7 @@ class OccupancyGridNode(Node):
 
         self.declare_parameter('p_occ', 0.9)
 
-        self.declare_parameter('inflation_radius', 0.2) # meters
+        self.declare_parameter('inflation_radius', 0.30) # meters
 
         self.declare_parameter('clear_on_max_range', False)
         
@@ -413,7 +413,7 @@ class OccupancyGridNode(Node):
                 return m
 
             # 3. Publish both
-            self.map_pub.publish(create_msg(raw_data))
+            self.map_pub.publish(create_msg(raw_data)) # transpose in robot
             self.inflated_map_pub.publish(create_msg(inflated_data))
 
 

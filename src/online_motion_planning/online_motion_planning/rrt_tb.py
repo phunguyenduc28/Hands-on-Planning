@@ -25,8 +25,8 @@ class SamplingTurtlebot(Node):
         self.inflated_cost = 0.36 # inflated footprint larger than robot radius
         self.max_linear_velocity = 0.3
         self.max_angular_velocity = 0.3
-        self.kv = 1.0
-        self.kw = 1.0
+        self.kv = 1.5
+        self.kw = 1.5
 
         # Map variables
         self.map = None
