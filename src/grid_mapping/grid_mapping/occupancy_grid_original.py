@@ -191,15 +191,17 @@ class OccupancyGridNode(Node):
         self.declare_parameter('grid_size', 20.0)
         self.declare_parameter('grid_resolution', 0.05)
         # self.declare_parameter('map_frame', 'world_ned')
-        # self.declare_parameter('map_frame', 'odom') #<--- For rosbag file
-        self.declare_parameter('map_frame', 'world_enu') #<--- For simulation file
+        self.declare_parameter('map_frame', 'odom') #<--- For rosbag file
+        # self.declare_parameter('map_frame', 'world_enu') #<--- For simulation file
         self.declare_parameter('base_frame', 'base_footprint')
-        self.declare_parameter('laser_frame', 'turtlebot/rplidar') #<--- For simulation file
-        # self.declare_parameter('laser_frame', 'rplidar') #<--- For rosbag file
+        # self.declare_parameter('laser_frame', 'turtlebot/rplidar') #<--- For simulation file
+        self.declare_parameter('laser_frame', 'rplidar') #<--- For rosbag file
 
         self.declare_parameter('p_occ', 0.9)
 
-        self.declare_parameter('inflation_radius', 0.3) # meters
+        self.declare_parameter('inflation_radius', 0.2) # meters
+
+        self.declare_parameter('clear_on_max_range', False)
         
         # Get parameters
         grid_size = self.get_parameter('grid_size').value
@@ -210,6 +212,7 @@ class OccupancyGridNode(Node):
         p_occ = self.get_parameter('p_occ').value
         self.p_occ = p_occ
         self.inflation_radius = self.get_parameter('inflation_radius').value
+        self.clear_on_max_range = self.get_parameter('clear_on_max_range').value
 
         
         # Initialize GridMap (centered at origin)
@@ -248,6 +251,9 @@ class OccupancyGridNode(Node):
         )
         self.get_logger().info(
             f"Frame configuration: map_frame='{self.map_frame}', base_frame='{self.base_frame}', laser_frame='{self.laser_frame}'"
+        )
+        self.get_logger().info(
+            f"Max-range policy: clear_on_max_range={self.clear_on_max_range}"
         )
     
     def quaternion_to_yaw(self, qx, qy, qz, qw):
@@ -345,7 +351,11 @@ class OccupancyGridNode(Node):
                 # If range is infinite, we still want to clear the space along that ray
                 is_max_range = not np.isfinite(range_val) or range_val >= max_range
                 
-                
+                # Keep mapped obstacles when there are no returns from the laser.
+                # If you want active clearing with max-range beams, set clear_on_max_range=true.
+                if is_max_range and not self.clear_on_max_range:
+                    continue
+
                 if is_max_range:
                     effective_range = scan_msg.range_max # Or a slightly smaller value
                 else:
@@ -354,10 +364,10 @@ class OccupancyGridNode(Node):
                 if effective_range < min_range:
                     continue
                 
-                # beam_angle = laser_yaw + angle_laser
+                # beam_angle = laser_yaw - angle_laser
 
                 # if map frame is world_enu
-                beam_angle = laser_yaw - angle_laser
+                beam_angle = laser_yaw + angle_laser
                 
                 # If it's a max-range hit, only clear the path, don't mark an obstacle
                 if is_max_range:
