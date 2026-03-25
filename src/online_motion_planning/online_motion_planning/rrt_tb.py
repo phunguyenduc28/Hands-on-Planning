@@ -48,6 +48,9 @@ class SamplingTurtlebot(Node):
         # Motion controller node
         self.complete_a_path = True
         
+        self.declare_parameter('map_frame', 'world_enu')
+        self.map_frame = self.get_parameter('map_frame').value
+
         # Subsrciber
         self.odom_sub = self.create_subscription(Odometry, '/turtlebot/odom', self.odom_callback, 10)
         self.map_sub = self.create_subscription(OccupancyGrid, '/inflated_map', self.map_callback, 10)
@@ -224,7 +227,7 @@ class SamplingTurtlebot(Node):
         # --- 1. Create the Line Strip Marker (The Links) ---
         if len(positions) > 1:
             line_marker = Marker()
-            line_marker.header.frame_id = "world_enu"
+            line_marker.header.frame_id = self.map_frame
             line_marker.header.stamp = now
             line_marker.ns = "links"
             line_marker.id = 0
@@ -255,7 +258,7 @@ class SamplingTurtlebot(Node):
         # --- 2. Create the Sphere Markers (The Points) ---
         for i, (x, y) in enumerate(positions):
             marker = Marker()
-            marker.header.frame_id = "world_enu"
+            marker.header.frame_id = self.map_frame
             marker.header.stamp = now
             marker.ns = "positions"
             marker.id = i

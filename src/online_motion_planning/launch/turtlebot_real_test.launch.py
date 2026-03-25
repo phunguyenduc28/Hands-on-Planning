@@ -51,7 +51,10 @@ def generate_launch_description():
         package='online_motion_planning',
         executable='rrt_tb',
         name='rrt_planner',
-        output='screen'
+        output='screen',
+        parameters=[{
+            'map_frame': LaunchConfiguration('map_frame')
+        }]
     )
 
     # 3. Return the Description

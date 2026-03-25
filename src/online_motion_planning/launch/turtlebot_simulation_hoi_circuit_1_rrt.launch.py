@@ -61,7 +61,10 @@ def generate_launch_description():
         package='online_motion_planning',
         executable='rrt_tb',
         name='rrt_planner',
-        output='screen'
+        output='screen',
+        parameters=[{
+            'map_frame': LaunchConfiguration('map_frame')
+        }]
     )
 
     delayed_nodes = TimerAction(
