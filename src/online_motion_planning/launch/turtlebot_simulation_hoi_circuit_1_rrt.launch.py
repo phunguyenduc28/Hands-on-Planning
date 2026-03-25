@@ -52,7 +52,8 @@ def generate_launch_description():
         parameters=[{
             'map_frame': LaunchConfiguration('map_frame'),
             'base_frame': 'base_footprint',
-            'laser_frame': 'turtlebot/rplidar'
+            'laser_frame': 'turtlebot/rplidar',
+            'inflation_radius': 0.32
         }]
     )
 

@@ -9,12 +9,8 @@ from launch_ros.actions import Node
 def generate_launch_description():
     # 1. Resolve paths
     pkg_dir = get_package_share_directory('turtlebot_simulation')
-    
-    launch_file = os.path.join(pkg_dir, 'launch', 'turtlebot_basic.launch.py')
-    scenario_file = os.path.join(pkg_dir, 'scenarios', 'turtlebot_hoi_circuit2.scn')
 
     # 2. Define the individual actions
-
     is_sim_arg = DeclareLaunchArgument(
         'is_sim',
         default_value='false'
@@ -25,30 +21,31 @@ def generate_launch_description():
         default_value='odom'
     )
 
-    occupancy_grid_node = Node(
-        package='grid_mapping',
-        executable='occupancy_grid',
-        name='occupancy_grid',
-        output='screen',
-        parameters=[{
-            'is_sim': LaunchConfiguration('is_sim'),
-            'map_frame': LaunchConfiguration('map_frame'),
-            'base_frame': 'base_footprint',
-            'laser_frame': 'rplidar'
-        }]
-    )
-
     # occupancy_grid_node = Node(
     #     package='grid_mapping',
-    #     executable='occupancy_grid_original',
+    #     executable='occupancy_grid',
     #     name='occupancy_grid',
     #     output='screen',
     #     parameters=[{
+    #         'is_sim': LaunchConfiguration('is_sim'),
     #         'map_frame': LaunchConfiguration('map_frame'),
     #         'base_frame': 'base_footprint',
     #         'laser_frame': 'rplidar'
     #     }]
     # )
+
+    occupancy_grid_node = Node(
+        package='grid_mapping',
+        executable='occupancy_grid_original',
+        name='occupancy_grid',
+        output='screen',
+        parameters=[{
+            'map_frame': LaunchConfiguration('map_frame'),
+            'base_frame': 'base_footprint',
+            'laser_frame': 'rplidar',
+            'inflation_radius': 0.25
+        }]
+    )
 
     rrt_planner_node = Node(
         package='online_motion_planning',
